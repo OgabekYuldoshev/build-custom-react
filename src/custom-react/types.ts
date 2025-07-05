@@ -8,7 +8,7 @@ type EffectTag = "CREATE" | "UPDATE" | "DELETE";
 
 export type Fiber = {
   tagName: ((props: Record<string, any>) => ElementType) | string;
-  hooks: any[],
+  hooks: any[];
   props: Record<string, any>;
   children: ElementType[];
   dom: HTMLElement | Text | null;
@@ -18,3 +18,5 @@ export type Fiber = {
   oldVersion: Fiber | null;
   effectTag: EffectTag | null;
 };
+
+export type UseStateAction<T> = (state: T) => T;

@@ -11,7 +11,7 @@ export function createElement(
       tagName,
       props: props ?? {},
       children: children.map((child) =>
-        typeof child === "string" ? createTextElement(child) : child
+        typeof child === "object" ? child : createTextElement(child)
       ),
     }
   );

@@ -2,8 +2,10 @@
 import CustomReact from "./custom-react"
 
 export function App() {
-    const handleSayHi = () => {
-        alert("Hi")
+    const [state, setState] = CustomReact.useState(1)
+
+    const handleCount = () => {
+        setState((p) => p + 1)
     }
 
     return (
@@ -14,10 +16,10 @@ export function App() {
                 </h1>
 
                 <button
-                    onClick={handleSayHi}
+                    onClick={handleCount}
                     className="px-8 py-3 bg-black text-white font-medium rounded-lg hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                 >
-                    Say hi
+                    Count: {state}
                 </button>
             </div>
         </div>

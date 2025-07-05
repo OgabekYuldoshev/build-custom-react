@@ -1,5 +1,5 @@
 import { createElement } from "./createElement";
-import type { ElementType, Fiber } from "./types";
+import type { ElementType, Fiber, UseStateAction } from "./types";
 import { isEvent, isGone, isNew, isProperty } from "./utils";
 
 let nextUnitOfWork: Fiber | null = null;
@@ -180,8 +180,6 @@ function updateHostComponent(fiber: Fiber) {
   reconcileChildren(fiber, fiber.children);
 }
 
-function useState() {}
-
 function reconcileChildren(fiber: Fiber, elements: ElementType[]) {
   let index = 0;
   let oldFiber = fiber?.oldVersion! && fiber.oldVersion.child!;
@@ -240,6 +238,47 @@ function reconcileChildren(fiber: Fiber, elements: ElementType[]) {
     prevSibling = newFiber;
     index++;
   }
+}
+
+function useState<T>(initial: T): [T, (action: UseStateAction<T>) => void] {
+  const oldHook = wipFiber?.oldVersion && wipFiber?.oldVersion.hooks[hookIndex];
+
+  const hook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [] as UseStateAction<T>[],
+  };
+
+  const actions = oldHook ? oldHook.queue : [];
+
+  actions.forEach((action: UseStateAction<T>) => {
+    hook.state = action(hook.state);
+  });
+
+  const setState = (action: UseStateAction<T>) => {
+    hook.queue.push(action);
+
+    wipRoot = {
+      tagName: currentRoot!.tagName,
+      props: currentRoot!.props,
+      children: currentRoot!.children,
+      dom: currentRoot!.dom,
+      parent: null,
+      sibling: null,
+      child: null,
+      hooks: [],
+      oldVersion: currentRoot!,
+      effectTag: null,
+    };
+
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+
+  wipFiber?.hooks.push(hook);
+
+  hookIndex++;
+
+  return [hook.state, setState];
 }
 
 export default {
