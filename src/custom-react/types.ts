@@ -20,3 +20,10 @@ export type Fiber = {
 };
 
 export type UseStateAction<T> = (state: T) => T;
+
+export type EffectHook = {
+  effect: () => void | (() => void);
+  deps?: any[];
+  cleanup?: () => void;
+  hasChanged: boolean;
+};

@@ -1,5 +1,5 @@
 import { createElement } from "./createElement";
-import type { ElementType, Fiber, UseStateAction } from "./types";
+import type { EffectHook, ElementType, Fiber, UseStateAction } from "./types";
 import { isEvent, isGone, isNew, isProperty } from "./utils";
 
 let nextUnitOfWork: Fiber | null = null;
@@ -108,6 +108,7 @@ function commitRoot() {
   deletions.forEach(commitWork);
   commitWork(wipRoot?.child);
   currentRoot = wipRoot;
+
   wipRoot = null;
 }
 
@@ -115,6 +116,17 @@ function commitWork(fiber: Fiber | null | undefined) {
   if (!fiber) {
     return;
   }
+
+  fiber.hooks
+    .filter(
+      (h) => "effect" in h && typeof h.effect === "function" && h.hasChanged
+    )
+    .forEach((hook) => {
+      const cleanup = hook.effect();
+      if (typeof cleanup === "function") {
+        hook.cleanup = cleanup;
+      }
+    });
 
   let domParentFiber = fiber.parent;
 
@@ -188,6 +200,7 @@ function reconcileChildren(fiber: Fiber, elements: ElementType[]) {
   while (index < elements.length || oldFiber !== null) {
     const element = elements[index];
     let newFiber: Fiber | null = null;
+
     const isSameTagName =
       oldFiber && element && element.tagName === oldFiber.tagName;
 
@@ -198,11 +211,11 @@ function reconcileChildren(fiber: Fiber, elements: ElementType[]) {
         dom: oldFiber.dom,
         parent: fiber,
         oldVersion: oldFiber,
-        effectTag: "UPDATE",
-        hooks: oldFiber.hooks,
-        sibling: oldFiber.sibling,
+        hooks: [],
+        sibling: null,
         children: element.children,
-        child: oldFiber.child,
+        child: null,
+        effectTag: "UPDATE",
       } satisfies Fiber;
     }
 
@@ -258,8 +271,8 @@ function useState<T>(initial: T): [T, (action: UseStateAction<T>) => void] {
     hook.queue.push(action);
 
     wipRoot = {
-      tagName: currentRoot!.tagName,
-      props: currentRoot!.props,
+      tagName: "",
+      props: currentRoot?.props!,
       children: currentRoot!.children,
       dom: currentRoot!.dom,
       parent: null,
@@ -270,19 +283,36 @@ function useState<T>(initial: T): [T, (action: UseStateAction<T>) => void] {
       effectTag: null,
     };
 
-    nextUnitOfWork = wipRoot;
     deletions = [];
+    nextUnitOfWork = wipRoot;
   };
 
   wipFiber?.hooks.push(hook);
-
-  hookIndex++;
+  hookIndex += 1;
 
   return [hook.state, setState];
+}
+
+function useEffect(effect: () => void | (() => void), deps?: any[]) {
+  const oldHook: EffectHook | undefined =
+    wipFiber?.oldVersion?.hooks[hookIndex];
+  const hasChanged =
+    !oldHook || !deps || deps.some((dep, i) => dep !== oldHook.deps?.[i]);
+
+  const hook: EffectHook = {
+    effect,
+    deps,
+    cleanup: hasChanged && oldHook?.cleanup ? oldHook.cleanup : undefined,
+    hasChanged,
+  };
+
+  wipFiber?.hooks.push(hook);
+  hookIndex++;
 }
 
 export default {
   render,
   createElement,
   useState,
+  useEffect,
 };
